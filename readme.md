@@ -42,4 +42,4 @@ Configure Google Apps Script
 
 2. Update the webhookUrl variable in your Apps Script code with your active public tunnel URL (appending /send-alert).
 
-3. Save and test your script. Any edits or status changes in your project tracker will now instantly sync with WhatsApp and send targeted email alerts to the engineers!# Ezone-WhatsApp-Email-Project-Tracker-Bot
+3. Save and test your script. Any edits or status changes in your project tracker will now instantly sync with WhatsApp and send targeted email alerts to the engineers!# WhatsApp-Email-Project-Tracker-Bot
