@@ -1,4 +1,4 @@
-# Ezone WhatsApp & Email Project Tracker Bot
+# WhatsApp & Email Project Tracker Bot
 
 An automated notification system that bridges Google Sheets with WhatsApp groups and email alerts. When a task status or row is updated in your project tracker, the system automatically dispatches a formatted project card to a WhatsApp group via Webhook and sends a direct notification email to the assigned engineer based on Column D.
 
