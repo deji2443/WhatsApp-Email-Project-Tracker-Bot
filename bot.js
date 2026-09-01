@@ -13,61 +13,63 @@ let sock;
 let latestQr = '';
 
 async function connectToWhatsApp() {
-    const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
+    try {
+        const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
 
-    sock = makeWASocket({
-        logger: pino({ level: 'silent' }),
-        auth: state
-    });
+        sock = makeWASocket({
+            logger: pino({ level: 'silent' }),
+            auth: state,
+            browser: ['Railway Bot', 'Chrome', '1.0.0']
+        });
 
-    sock.ev.on('creds.update', saveCreds);
+        sock.ev.on('creds.update', saveCreds);
 
-    sock.ev.on('connection.update', async(update) => {
-        const { connection, lastDisconnect, qr } = update;
+        sock.ev.on('connection.update', async(update) => {
+            const { connection, lastDisconnect, qr } = update;
 
-        if (qr) {
-            latestQr = qr;
-            console.log('--- SCAN THIS QR CODE ---');
-            qrcodeTerminal.generate(qr, { small: true });
-        }
-
-        if (connection === 'close') {
-            const statusCode = (lastDisconnect && lastDisconnect.error && lastDisconnect.error.output) ? lastDisconnect.error.output.statusCode : 0;
-            const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-            console.log('Connection closed. Reconnecting...', shouldReconnect);
-            if (shouldReconnect) {
-                connectToWhatsApp();
+            if (qr) {
+                latestQr = qr;
+                console.log('--- SCAN THIS QR CODE ---');
+                qrcodeTerminal.generate(qr, { small: true });
             }
-        } else if (connection === 'open') {
-            latestQr = '';
-            console.log('WhatsApp connection opened successfully!');
 
-            try {
-                const groups = await sock.groupFetchAllParticipating();
-                console.log('--- 📋 YOUR WHATSAPP GROUPS ---');
-                for (const [jid, group] of Object.entries(groups)) {
-                    console.log(`Group Name: "${group.subject}" ==> JID: ${jid}`);
+            if (connection === 'close') {
+                const statusCode = (lastDisconnect && lastDisconnect.error && lastDisconnect.error.output) ? lastDisconnect.error.output.statusCode : 0;
+                const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+                console.log('Connection closed. Reconnecting...', shouldReconnect);
+                if (shouldReconnect) {
+                    setTimeout(connectToWhatsApp, 3000); // Prevent endless sync loop
                 }
-                console.log('---------------------------------');
-            } catch (err) {
-                console.log('Could not fetch groups yet:', err.message);
+            } else if (connection === 'open') {
+                latestQr = '';
+                console.log('WhatsApp connection opened successfully!');
+
+                try {
+                    const groups = await sock.groupFetchAllParticipating();
+                    console.log('--- 📋 YOUR WHATSAPP GROUPS ---');
+                    for (const [jid, group] of Object.entries(groups)) {
+                        console.log(`Group Name: "${group.subject}" ==> JID: ${jid}`);
+                    }
+                    console.log('---------------------------------');
+                } catch (err) {
+                    console.log('Could not fetch groups yet:', err.message);
+                }
             }
-        }
-    });
+        });
 
-    sock.ev.on('messages.upsert', async({ messages }) => {
-        const msg = messages[0];
-        if (!msg.message) return;
+        sock.ev.on('messages.upsert', async({ messages }) => {
+            const msg = messages[0];
+            if (!msg || !msg.message) return;
 
-        const remoteJid = msg.key.remoteJid;
-        if (remoteJid && remoteJid.endsWith('@g.us')) {
-            console.log(`💬 Found Group JID: ${remoteJid}`);
-        }
-    });
+            const remoteJid = msg.key.remoteJid;
+            if (remoteJid && remoteJid.endsWith('@g.us')) {
+                console.log(`💬 Found Group JID: ${remoteJid}`);
+            }
+        });
+    } catch (error) {
+        console.error('Baileys Socket Error:', error);
+    }
 }
-
-// Start WhatsApp Socket Connection
-connectToWhatsApp();
 
 // Browser QR code endpoint
 app.get('/qr', (req, res) => {
@@ -119,8 +121,10 @@ app.get('/', (req, res) => {
     res.send('WhatsApp Local Bridge is Running!');
 });
 
-// Start Express Listener bound to 0.0.0.0
+// Bind Express port FIRST so Railway health checks pass immediately
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Local bridge running on port ${PORT} bound to 0.0.0.0`);
+    // Initialize Baileys AFTER Express server starts listening
+    connectToWhatsApp();
 });

@@ -1,26 +1,22 @@
-# Use an official Node.js runtime as the base image
 FROM node:20-slim
 
-# Install system dependencies if required by Baileys/Canvas (optional, but good practice for Node bots)
+# Install OpenSSL and CA certificates needed for Baileys WebSocket connection
 RUN apt-get update && apt-get install -y \
-    git \
-    libgbm-dev \
+    openssl \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy package.json and package-lock.json (if available)
 COPY package*.json ./
 
-# Install project dependencies
-RUN npm install
+RUN npm ci --only=production
 
-# Copy the rest of your application code
 COPY . .
 
-# Expose the port your Express server uses (change if your app uses a different port)
+# Create session directory to prevent crashes
+RUN mkdir -p auth_info_baileys
+
 EXPOSE 3000
 
-# Define the command to run your app
 CMD ["npm", "start"]
