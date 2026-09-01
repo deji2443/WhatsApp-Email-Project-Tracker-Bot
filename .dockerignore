@@ -1,9 +1,7 @@
 node_modules
-npm-debug.log
+npm - debug.log
 Dockerfile
-.dockerignore
-.git
-.env
-auth_info_baileys*
+    .dockerignore
+    .git
+    .env
 node_modules
-auth_info_baileys
