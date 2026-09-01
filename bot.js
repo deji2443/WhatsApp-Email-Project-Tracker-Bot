@@ -21,12 +21,23 @@ app.get('/', (req, res) => {
 });
 
 app.get('/qr', (req, res) => {
+    // Prevent browser caching so you always get the newest QR code
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
     if (isConnected) {
-        return res.type('html').send('<div style="font-family:sans-serif; text-align:center; padding:50px;"><h3>WhatsApp is already connected!</h3></div>');
+        return res.type('html').send(`
+            <div style="font-family:sans-serif; text-align:center; padding:50px;">
+                <h3 style="color: #2e7d32;">WhatsApp is already connected!</h3>
+            </div>
+        `);
     }
 
     if (!latestQr) {
-        return res.type('html').send('<div style="font-family:sans-serif; text-align:center; padding:50px;"><h3>QR Code is generating, please refresh in a few seconds...</h3></div>');
+        return res.type('html').send(`
+            <div style="font-family:sans-serif; text-align:center; padding:50px;">
+                <h3>QR Code is generating, please refresh in 5 seconds...</h3>
+            </div>
+        `);
     }
 
     qrcode.toDataURL(latestQr, (err, url) => {
@@ -35,9 +46,9 @@ app.get('/qr', (req, res) => {
         }
         res.type('html').send(`
             <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:90vh; font-family:sans-serif;">
-                <h2>Scan WhatsApp QR Code</h2>
-                <img src="${url}" style="width:300px; height:300px; border:2px solid #333; padding:10px; border-radius:8px;">
-                <p>Refresh page if QR code expires.</p>
+                <h2 style="margin-bottom:20px;">Scan WhatsApp QR Code</h2>
+                <img src="${url}" style="width:300px; height:300px; border:2px solid #ccc; padding:15px; border-radius:12px; background:#fff;">
+                <p style="margin-top:15px; color:#666;">Refresh the page if the QR code expires or fails to pair.</p>
             </div>
         `);
     });
