@@ -53,13 +53,30 @@ app.get('/qr', (req, res) => {
     });
 });
 
+// Dedicated route to fetch group JIDs on demand without spamming startup
+app.get('/groups', async(req, res) => {
+    if (!isConnected || !sock) {
+        return res.status(503).json({ success: false, error: 'WhatsApp is disconnected.' });
+    }
+    try {
+        const groups = await sock.groupFetchAllParticipating();
+        const groupList = Object.entries(groups).map(([jid, group]) => ({
+            name: group.subject,
+            jid: jid
+        }));
+        res.status(200).json({ success: true, groups: groupList });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 app.post('/send-alert', async(req, res) => {
     const { target, message } = req.body;
 
     if (!isConnected || !sock) {
         return res.status(503).json({
             success: false,
-            error: 'WhatsApp bot is offline or re-authenticating. Please wait a few seconds or check /qr.'
+            error: 'WhatsApp bot is offline. Please scan the QR code at /qr first.'
         });
     }
 
@@ -84,7 +101,7 @@ app.post('/send-alert', async(req, res) => {
 // ----------------------------------------------------
 // 2. START SERVER
 // ----------------------------------------------------
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`[HTTP] Server active on port ${PORT}`);
     connectToWhatsApp().catch(err => console.error('[WhatsApp Startup Error]:', err));
@@ -96,7 +113,6 @@ app.listen(PORT, '0.0.0.0', () => {
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
 
-    // Clean up previous socket listeners if reconnecting
     if (sock) {
         sock.ev.removeAllListeners();
     }
@@ -125,17 +141,6 @@ async function connectToWhatsApp() {
             latestQr = '';
             isConnected = true;
             console.log('[WhatsApp] Connection opened successfully!');
-
-            try {
-                const groups = await sock.groupFetchAllParticipating();
-                console.log('--- 📋 YOUR WHATSAPP GROUPS ---');
-                for (const [jid, group] of Object.entries(groups)) {
-                    console.log(`Group Name: "${group.subject}" ==> JID: ${jid}`);
-                }
-                console.log('---------------------------------');
-            } catch (err) {
-                console.log('Could not fetch groups yet:', err.message);
-            }
         }
 
         if (connection === 'close') {
@@ -144,13 +149,17 @@ async function connectToWhatsApp() {
                 lastDisconnect.error.output.statusCode :
                 0;
 
-            const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-            console.log(`[WhatsApp] Connection closed (Reason: ${statusCode}). Reconnecting: ${shouldReconnect}`);
+            console.log(`[WhatsApp] Connection closed (Reason: ${statusCode}). Reconnecting...`);
 
+            // Reason 440 means session replaced by another client instance
+            if (statusCode === DisconnectReason.connectionReplaced) {
+                console.log('[WhatsApp] Session replaced! Another process is running with this account.');
+                return;
+            }
+
+            const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
             if (shouldReconnect) {
                 setTimeout(connectToWhatsApp, 5000);
-            } else {
-                console.log('[WhatsApp] Session logged out. Clear auth_info_baileys folder and restart.');
             }
         }
     });
