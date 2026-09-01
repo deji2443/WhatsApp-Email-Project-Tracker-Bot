@@ -3,14 +3,14 @@ const { Boom } = require('@hapi/boom');
 const pino = require('pino');
 const express = require('express');
 const bodyParser = require('body-parser');
-const qrcodeTerminal = require('qrcode-terminal'); // Renamed to avoid name collision
-const qrcode = require('qrcode'); // For generating browser image
+const qrcodeTerminal = require('qrcode-terminal');
+const qrcode = require('qrcode');
 
 const app = express();
 app.use(bodyParser.json());
 
 let sock;
-let latestQr = ''; // Stores the latest raw QR string
+let latestQr = '';
 
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
@@ -26,7 +26,7 @@ async function connectToWhatsApp() {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
-            latestQr = qr; // Save raw QR for the /qr web endpoint
+            latestQr = qr;
             console.log('--- SCAN THIS QR CODE ---');
             qrcodeTerminal.generate(qr, { small: true });
         }
@@ -39,7 +39,7 @@ async function connectToWhatsApp() {
                 connectToWhatsApp();
             }
         } else if (connection === 'open') {
-            latestQr = ''; // Clear QR string once authenticated
+            latestQr = '';
             console.log('WhatsApp connection opened successfully!');
 
             try {
@@ -66,10 +66,10 @@ async function connectToWhatsApp() {
     });
 }
 
-// Start the WhatsApp socket connection
+// Start WhatsApp Socket Connection
 connectToWhatsApp();
 
-// Endpoint to view QR code in browser
+// Browser QR code endpoint
 app.get('/qr', (req, res) => {
     if (!latestQr) {
         return res.send('<div style="font-family:sans-serif; text-align:center; padding:50px;"><h3>No QR code available. Bot is either already authenticated or starting up.</h3></div>');
@@ -89,7 +89,7 @@ app.get('/qr', (req, res) => {
     });
 });
 
-// Express endpoint to send messages
+// Webhook endpoint to dispatch alerts from Google Sheets / Apps Script
 app.post('/send-alert', async(req, res) => {
     const { target, message } = req.body;
 
@@ -114,11 +114,13 @@ app.post('/send-alert', async(req, res) => {
     }
 });
 
+// Root endpoint
 app.get('/', (req, res) => {
     res.send('WhatsApp Local Bridge is Running!');
 });
 
+// Start Express Listener bound to 0.0.0.0
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Local bridge running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Local bridge running on port ${PORT} bound to 0.0.0.0`);
 });
