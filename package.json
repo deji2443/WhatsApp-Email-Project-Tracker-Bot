@@ -2,9 +2,10 @@
     "name": "ezone-whatsapp-test",
     "version": "1.0.0",
     "description": "WhatsApp and Email Project Tracker Bot",
-    "main": "bot.js",
+    "type": "module",
+    "main": "server.js",
     "scripts": {
-        "start": "node bot.js"
+        "start": "node server.js"
     },
     "dependencies": {
         "@hapi/boom": "^10.0.1",
