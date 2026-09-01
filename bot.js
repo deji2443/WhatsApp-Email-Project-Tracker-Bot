@@ -13,15 +13,13 @@ let latestQr = '';
 let isConnected = false;
 
 // ----------------------------------------------------
-// 1. EXPRESS ROUTES (Available immediately)
+// 1. EXPRESS ROUTES
 // ----------------------------------------------------
 
-// Root Healthcheck (Railway checks this)
 app.get('/', (req, res) => {
     res.status(200).send('WhatsApp Local Bridge is Running!');
 });
 
-// Browser QR Endpoint
 app.get('/qr', (req, res) => {
     if (isConnected) {
         return res.type('html').send('<div style="font-family:sans-serif; text-align:center; padding:50px;"><h3>WhatsApp is already connected!</h3></div>');
@@ -45,7 +43,6 @@ app.get('/qr', (req, res) => {
     });
 });
 
-// Webhook for Apps Script
 app.post('/send-alert', async(req, res) => {
     const { target, message } = req.body;
 
@@ -75,17 +72,16 @@ app.post('/send-alert', async(req, res) => {
 });
 
 // ----------------------------------------------------
-// 2. START EXPRESS SERVER FIRST
+// 2. START SERVER
 // ----------------------------------------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`[HTTP] Server active on port ${PORT}`);
-    // Boot Baileys in background
     connectToWhatsApp().catch(err => console.error('[WhatsApp Startup Error]:', err));
 });
 
 // ----------------------------------------------------
-// 3. BAILEYS CONNECTION LOGIC
+// 3. BAILEYS CONNECTION
 // ----------------------------------------------------
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
@@ -126,7 +122,9 @@ async function connectToWhatsApp() {
 
         if (connection === 'close') {
             isConnected = false;
-            const statusCode = lastDisconnect ? .error ? .output ? .statusCode || 0;
+            const statusCode = (lastDisconnect && lastDisconnect.error && lastDisconnect.error.output) ?
+                lastDisconnect.error.output.statusCode :
+                0;
             const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
             console.log(`[WhatsApp] Closed (Status ${statusCode}). Reconnecting: ${shouldReconnect}`);
 
