@@ -21,13 +21,12 @@ app.get('/', (req, res) => {
 });
 
 app.get('/qr', (req, res) => {
-    // Prevent browser caching so you always get the newest QR code
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 
     if (isConnected) {
         return res.type('html').send(`
             <div style="font-family:sans-serif; text-align:center; padding:50px;">
-                <h3 style="color: #2e7d32;">WhatsApp is already connected!</h3>
+                <h3 style="color: #2e7d32;">WhatsApp is connected and active!</h3>
             </div>
         `);
     }
@@ -60,7 +59,7 @@ app.post('/send-alert', async(req, res) => {
     if (!isConnected || !sock) {
         return res.status(503).json({
             success: false,
-            error: 'WhatsApp bot is still connecting or authenticating. Please scan the QR code at /qr first.'
+            error: 'WhatsApp bot is offline or re-authenticating. Please wait a few seconds or check /qr.'
         });
     }
 
@@ -69,15 +68,15 @@ app.post('/send-alert', async(req, res) => {
     }
 
     try {
-        let recipientJid = target;
-        if (!target.includes('@')) {
-            recipientJid = `${target}@s.whatsapp.net`;
+        let recipientJid = target.toString().trim();
+        if (!recipientJid.includes('@')) {
+            recipientJid = `${recipientJid}@s.whatsapp.net`;
         }
 
         await sock.sendMessage(recipientJid, { text: message });
         res.status(200).json({ success: true, status: 'Message sent!' });
     } catch (error) {
-        console.error('Error sending message:', error);
+        console.error('[WhatsApp Send Error]:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -92,15 +91,23 @@ app.listen(PORT, '0.0.0.0', () => {
 });
 
 // ----------------------------------------------------
-// 3. BAILEYS CONNECTION
+// 3. BAILEYS CONNECTION MANAGER
 // ----------------------------------------------------
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
 
+    // Clean up previous socket listeners if reconnecting
+    if (sock) {
+        sock.ev.removeAllListeners();
+    }
+
     sock = makeWASocket({
         logger: pino({ level: 'silent' }),
         auth: state,
-        browser: ['Railway Bot', 'Chrome', '1.0.0']
+        browser: ['Railway Bot', 'Chrome', '1.0.0'],
+        connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 60000,
+        keepAliveIntervalMs: 10000
     });
 
     sock.ev.on('creds.update', saveCreds);
@@ -136,11 +143,14 @@ async function connectToWhatsApp() {
             const statusCode = (lastDisconnect && lastDisconnect.error && lastDisconnect.error.output) ?
                 lastDisconnect.error.output.statusCode :
                 0;
+
             const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-            console.log(`[WhatsApp] Closed (Status ${statusCode}). Reconnecting: ${shouldReconnect}`);
+            console.log(`[WhatsApp] Connection closed (Reason: ${statusCode}). Reconnecting: ${shouldReconnect}`);
 
             if (shouldReconnect) {
                 setTimeout(connectToWhatsApp, 5000);
+            } else {
+                console.log('[WhatsApp] Session logged out. Clear auth_info_baileys folder and restart.');
             }
         }
     });
