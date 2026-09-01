@@ -125,10 +125,11 @@ async function connectToWhatsApp() {
 
         if (connection === 'close') {
             isConnected = false;
-            const shouldReconnect =
-                (lastDisconnect ? .error) ? .output ? .statusCode !== DisconnectReason.loggedOut;
 
-            console.log(`[WhatsApp] Closed. Reason: ${lastDisconnect?.error}. Reconnecting: ${shouldReconnect}`);
+            const statusCode = lastDisconnect ? .error ? .output ? .statusCode;
+            const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+
+            console.log(`[WhatsApp] Closed. Status Code: ${statusCode}. Reconnecting: ${shouldReconnect}`);
 
             if (shouldReconnect) {
                 setTimeout(connectToWhatsApp, 5000);
@@ -141,4 +142,5 @@ async function connectToWhatsApp() {
             }
         }
     });
+
 }
