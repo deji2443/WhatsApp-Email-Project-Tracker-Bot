@@ -3,12 +3,14 @@ const { Boom } = require('@hapi/boom');
 const pino = require('pino');
 const express = require('express');
 const bodyParser = require('body-parser');
-const qrcode = require('qrcode-terminal');
+const qrcodeTerminal = require('qrcode-terminal'); // Renamed to avoid name collision
+const qrcode = require('qrcode'); // For generating browser image
 
 const app = express();
 app.use(bodyParser.json());
 
 let sock;
+let latestQr = ''; // Stores the latest raw QR string
 
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
@@ -24,8 +26,9 @@ async function connectToWhatsApp() {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
+            latestQr = qr; // Save raw QR for the /qr web endpoint
             console.log('--- SCAN THIS QR CODE ---');
-            qrcode.generate(qr, { small: true });
+            qrcodeTerminal.generate(qr, { small: true });
         }
 
         if (connection === 'close') {
@@ -36,6 +39,7 @@ async function connectToWhatsApp() {
                 connectToWhatsApp();
             }
         } else if (connection === 'open') {
+            latestQr = ''; // Clear QR string once authenticated
             console.log('WhatsApp connection opened successfully!');
 
             try {
@@ -65,11 +69,30 @@ async function connectToWhatsApp() {
 // Start the WhatsApp socket connection
 connectToWhatsApp();
 
-// Express endpoint to send messages (with safety guard for sock.user)
+// Endpoint to view QR code in browser
+app.get('/qr', (req, res) => {
+    if (!latestQr) {
+        return res.send('<div style="font-family:sans-serif; text-align:center; padding:50px;"><h3>No QR code available. Bot is either already authenticated or starting up.</h3></div>');
+    }
+
+    qrcode.toDataURL(latestQr, (err, url) => {
+        if (err) {
+            return res.status(500).send('Failed to render QR image');
+        }
+        res.send(`
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:90vh; font-family:sans-serif;">
+                <h2>Scan WhatsApp QR Code</h2>
+                <img src="${url}" style="width:300px; height:300px; border:2px solid #333; padding:10px; border-radius:8px;">
+                <p>Refresh page if QR code expires.</p>
+            </div>
+        `);
+    });
+});
+
+// Express endpoint to send messages
 app.post('/send-alert', async(req, res) => {
     const { target, message } = req.body;
 
-    // Ensure the socket and user authentication are fully ready
     if (!sock || !sock.user) {
         return res.status(503).json({
             success: false,
@@ -95,6 +118,7 @@ app.get('/', (req, res) => {
     res.send('WhatsApp Local Bridge is Running!');
 });
 
-app.listen(3000, () => {
-    console.log('Local bridge running on http://localhost:3000');
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Local bridge running on port ${PORT}`);
 });
