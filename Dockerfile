@@ -10,7 +10,8 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci --only=production
+# Change 'npm ci --only=production' to 'npm install'
+RUN npm install
 
 COPY . .
 
