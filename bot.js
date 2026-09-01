@@ -1,10 +1,10 @@
-const { makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
-const { Boom } = require('@hapi/boom');
-const pino = require('pino');
-const express = require('express');
-const bodyParser = require('body-parser');
-const qrcodeTerminal = require('qrcode-terminal');
-const qrcode = require('qrcode');
+import { makeWASocket, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
+import { Boom } from '@hapi/boom';
+import pino from 'pino';
+import express from 'express';
+import bodyParser from 'body-parser';
+import qrcodeTerminal from 'qrcode-terminal';
+import qrcode from 'qrcode';
 
 const app = express();
 app.use(bodyParser.json());

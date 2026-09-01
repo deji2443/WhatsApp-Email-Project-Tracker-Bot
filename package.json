@@ -3,9 +3,9 @@
     "version": "1.0.0",
     "description": "WhatsApp and Email Project Tracker Bot",
     "type": "module",
-    "main": "server.js",
+    "main": "bot.js",
     "scripts": {
-        "start": "node server.js"
+        "start": "node bot.js"
     },
     "dependencies": {
         "@hapi/boom": "^10.0.1",
